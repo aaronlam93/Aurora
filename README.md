@@ -22,10 +22,14 @@ The `SDM_chatbot_jsonreader.py` script is designed to read JSON files from a spe
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/aaronlam93/Aurora.git
+   git clone https://github.com/aaronlam93/Aurora.git\
+   
+## Usage
 
 Place your JSON files in the specified directory.
 Ensure the script is configured correctly.
 Run the script and check the output directory for results.
-Author
+
+## Author
+
 Aaron Lam
