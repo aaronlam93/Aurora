@@ -1,6 +1,6 @@
 # Sleep Memories Chatbot JSON Reader
 
-This repository contains a script developed by Aaron Lam to read and process JSON data for the SDM Mobile App project.
+This repository contains a script developed by Aaron Lam to read and process JSON data for the Sleep Memories app that is being used by the Healthy Brain Ageing Clinic to capture sleep-dependent memory data.
 
 ## Description
 
