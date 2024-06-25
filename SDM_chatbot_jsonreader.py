@@ -2,6 +2,7 @@
 import json
 import pandas as pd
 import os
+from spellchecker import SpellChecker
 
 # Directory containing JSON files
 directory = '/Users/aaronlam/Library/CloudStorage/OneDrive-TheUniversityofSydney(Staff)/13. Projects/SDM_MobileApp/999. SOFTWARE/Aurora-Firebase 2/TEST/'
@@ -23,6 +24,22 @@ correct_answers = {
     "SYRUP": "maple", "TODAY": "yesterday"
 }
 
+# Initialize spell checker
+spell = SpellChecker()
+
+# Function to correct spelling in the user responses
+def correct_user_response(response):
+    words = response.split()
+    corrected_words = [spell.correction(word) for word in words]
+    # Remove duplicates while preserving order
+    seen = set()
+    corrected_unique_words = []
+    for word in corrected_words:
+        if word not in seen:
+            seen.add(word)
+            corrected_unique_words.append(word)
+    return ' '.join(corrected_unique_words)
+
 # Function to extract prompts and responses with study-id and initials
 def extract_prompts_responses_with_ids(data, study_id, initials):
     records = []
@@ -40,7 +57,8 @@ def extract_prompts_responses_with_ids(data, study_id, initials):
                 user_response = result.get("user", "")
                 bot_prompt = result.get("bot", "")
                 bot_prompts += 1
-                if bot_prompt and bot_prompt in correct_answers and correct_answers[bot_prompt].lower() == user_response.lower():
+                corrected_user_response = correct_user_response(user_response)
+                if bot_prompt and bot_prompt in correct_answers and correct_answers[bot_prompt].lower() == corrected_user_response.lower():
                     correct_responses += 1
                 records.append({
                     "study_id": study_id,
@@ -48,7 +66,8 @@ def extract_prompts_responses_with_ids(data, study_id, initials):
                     "session_id": session_id,
                     "description": description,
                     "bot_prompt": bot_prompt,
-                    "user_response": user_response
+                    "user_response": user_response,
+                    "corrected_user_response": corrected_user_response
                 })
         
         if description not in trial_completeness:
