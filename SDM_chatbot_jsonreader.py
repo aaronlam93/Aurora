@@ -30,7 +30,7 @@ spell = SpellChecker()
 # Function to correct spelling in the user responses
 def correct_user_response(response):
     words = response.split()
-    corrected_words = [spell.correction(word) for word in words]
+    corrected_words = [spell.correction(word) for word in words if spell.correction(word) is not None]
     # Remove duplicates while preserving order
     seen = set()
     corrected_unique_words = []
