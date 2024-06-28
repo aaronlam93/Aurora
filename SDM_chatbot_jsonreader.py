@@ -1,7 +1,6 @@
 import json
 import pandas as pd
 import os
-from spellchecker import SpellChecker
 import time
 
 # Directory containing JSON files
@@ -14,7 +13,7 @@ if not os.path.exists(output_directory):
 summary_data = []
 no_test_results_files = []
 
-# Correct answers dictionary
+# Correct answers dictionary (case-sensitive for Word-Quad-Tests)
 correct_answers = {
     "ACTOR": "movie", "BLACK": "standing", "BORROW": "circle", "BUYER": "early", "DAWN": "morning", 
     "DIME": "quarter", "DINNER": "food", "FAR": "close", "FEET": "girl", "FORK": "knife", 
@@ -25,17 +24,25 @@ correct_answers = {
     "SYRUP": "maple", "TODAY": "yesterday"
 }
 
-# Initialize spell checker
-spell = SpellChecker()
+correct_answers_quad = {
+    "Actor": "Movie", "Black": "Standing", "Borrow": "Circle", "Buyer": "Early", "Dawn": "Morning", 
+    "Dime": "Quarter", "Dinner": "Food", "Far": "Close", "Feet": "Girl", "Fork": "Knife", 
+    "Forward": "Outside", "Garbage": "Can", "Gold": "Money", "Grandma": "Hour", "Groom": "Minimum", 
+    "Increase": "Call", "Intelligent": "Smart", "Lemon": "Sour", "Man": "Boy", "Mother": "Daughter", 
+    "Nail": "Finger", "Odd": "Uncle", "Plus": "Summer", "Prince": "Many", "Reckless": "Full", 
+    "Rich": "Mail", "Salt": "Water", "Shirt": "Innocent", "Sister": "Glass", "Swamp": "Over", 
+    "Syrup": "Maple", "Today": "Yesterday"
+}
 
-# Function to correct spelling in the user responses
-def correct_user_response(response):
-    print(f"Correcting response: {response}")
-    if not response.strip():
-        return response
-    correction = spell.correction(response)
-    print(f"Correction: {correction}")
-    return correction if correction else response
+# Function to check the response
+def check_response(bot_prompt, user_response, test_type):
+    if test_type == "Word-Pair-Tests":
+        correct_answer = correct_answers.get(bot_prompt.upper(), None)
+        return correct_answer and correct_answer.lower() == user_response.lower()
+    elif test_type == "Word-Quad-Tests":
+        correct_answer = correct_answers_quad.get(bot_prompt, None)
+        return correct_answer and correct_answer == user_response
+    return False
 
 # Function to extract prompts and responses with study-id and initials
 def extract_prompts_responses_with_ids(data, study_id, initials):
@@ -44,40 +51,41 @@ def extract_prompts_responses_with_ids(data, study_id, initials):
     trial_completeness = {}
     trial_performance = {}
 
-    for test in data.get("Word-Pair-Tests", []) + data.get("Word-Quad-Tests", []):
-        session_id = test.get("session-id")
-        description = test.get("description")
-        bot_prompts = 0
-        correct_responses = 0
+    for test_type in ["Word-Pair-Tests", "Word-Quad-Tests"]:
+        for test in data.get(test_type, []):
+            session_id = test.get("session-id")
+            description = test.get("description")
+            bot_prompts = 0
+            correct_responses = 0
 
-        for key, result in test.items():
-            if key.startswith("result"):
-                user_response = result.get("user", "")
-                bot_prompt = result.get("bot", "")
-                bot_prompts += 1
-                corrected_user_response = correct_user_response(user_response)
-                if bot_prompt and bot_prompt in correct_answers and correct_answers[bot_prompt].lower() == corrected_user_response.lower():
-                    correct_responses += 1
-                records.append({
-                    "study_id": study_id,
-                    "initials": initials,
-                    "session_id": session_id,
-                    "description": description,
-                    "bot_prompt": bot_prompt,
-                    "user_response": user_response,
-                    "corrected_user_response": corrected_user_response
-                })
-        
-        if description not in trial_completeness:
-            trial_completeness[description] = []
-            trial_performance[description] = []
-        
-        # Adjust bot_prompts to 32 if it is greater than 32
-        if bot_prompts > 32:
-            bot_prompts = 32
-        
-        trial_completeness[description].append(bot_prompts)
-        trial_performance[description].append(correct_responses)
+            for key, result in test.items():
+                if key.startswith("result"):
+                    user_response = result.get("user", "")
+                    bot_prompt = result.get("bot", "")
+                    bot_prompts += 1
+                    if check_response(bot_prompt, user_response, test_type):
+                        correct_responses += 1
+                    records.append({
+                        "study_id": study_id,
+                        "initials": initials,
+                        "session_id": session_id,
+                        "description": description,
+                        "bot_prompt": bot_prompt,
+                        "user_response": user_response,
+                        "corrected_user_response": user_response,
+                        "test_type": test_type  # Add test type for clarity
+                    })
+            
+            if description not in trial_completeness:
+                trial_completeness[description] = []
+                trial_performance[description] = []
+            
+            # Adjust bot_prompts to 32 if it is greater than 32
+            if bot_prompts > 32:
+                bot_prompts = 32
+            
+            trial_completeness[description].append(bot_prompts)
+            trial_performance[description].append(correct_responses)
     
     return records, trial_completeness, trial_performance
 
