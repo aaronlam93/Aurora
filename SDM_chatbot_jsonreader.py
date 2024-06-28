@@ -1,17 +1,18 @@
-# After downloading app data, we have the following
 import json
 import pandas as pd
 import os
 from spellchecker import SpellChecker
+import time
 
 # Directory containing JSON files
-directory = '/Users/aaronlam/Library/CloudStorage/OneDrive-TheUniversityofSydney(Staff)/13. Projects/SDM_MobileApp/999. SOFTWARE/Aurora-Firebase 2/TEST/'
+directory = 'C:/Users/Aaron Lam/OneDrive - The University of Sydney (Staff)/13. Projects/SDM_MobileApp/999. SOFTWARE/Aurora-Firebase 2/Users/'
 output_directory = os.path.join(directory, 'output')
 
 if not os.path.exists(output_directory):
     os.makedirs(output_directory)
 
-summary_data=[]
+summary_data = []
+no_test_results_files = []
 
 # Correct answers dictionary
 correct_answers = {
@@ -29,19 +30,16 @@ spell = SpellChecker()
 
 # Function to correct spelling in the user responses
 def correct_user_response(response):
-    words = response.split()
-    corrected_words = [spell.correction(word) for word in words if spell.correction(word) is not None]
-    # Remove duplicates while preserving order
-    seen = set()
-    corrected_unique_words = []
-    for word in corrected_words:
-        if word not in seen:
-            seen.add(word)
-            corrected_unique_words.append(word)
-    return ' '.join(corrected_unique_words)
+    print(f"Correcting response: {response}")
+    if not response.strip():
+        return response
+    correction = spell.correction(response)
+    print(f"Correction: {correction}")
+    return correction if correction else response
 
 # Function to extract prompts and responses with study-id and initials
 def extract_prompts_responses_with_ids(data, study_id, initials):
+    print(f"Extracting prompts and responses for study_id: {study_id}, initials: {initials}")
     records = []
     trial_completeness = {}
     trial_performance = {}
@@ -83,9 +81,9 @@ def extract_prompts_responses_with_ids(data, study_id, initials):
     
     return records, trial_completeness, trial_performance
 
-
 # Function to extract demographic data
 def extract_demographic_data(data, study_id, initials):
+    print(f"Extracting demographic data for study_id: {study_id}, initials: {initials}")
     demographic_keys = ["profile-sleep-tonight", "profile-wakeup-tomorrow", "sleep-last-night", "hours-slept", "sleep-compared-to-normal", "wake-up-today", "birth-year", "gender"]
     demographic_data = {key: data.get(key, "") for key in demographic_keys}
     demographic_data.update({
@@ -93,12 +91,26 @@ def extract_demographic_data(data, study_id, initials):
         "initials": initials
     })
     return demographic_data
+
+# Process files
+file_count = 0
+start_time = time.time()
+
 for filename in os.listdir(directory):
     if filename.endswith('.json'):
+        file_count += 1
         filepath = os.path.join(directory, filename)
+        print(f"Processing file: {filepath}")
+        
         with open(filepath) as f:
             data = json.load(f)
         
+        # Check if the necessary keys exist and are not empty
+        if not data.get("Word-Pair-Tests") and not data.get("Word-Quad-Tests"):
+            print(f"Skipping file {filename}: no test results found")
+            no_test_results_files.append(filename)
+            continue
+
         study_id = data.get("study-id", "")
         initials = data.get("initials", "")
         
@@ -131,6 +143,7 @@ for filename in os.listdir(directory):
         df_demographic.to_csv(csv_file_demographic_path, index=False)
         df_trial_completeness.to_csv(csv_file_completeness_path, index=False)
         df_trial_performance.to_csv(csv_file_performance_path, index=False)
+        
         # Append summary data
         summary_entry = {
             "study_id": study_id,
@@ -143,8 +156,18 @@ for filename in os.listdir(directory):
 
         print(f'Processed {filename}')
 
+end_time = time.time()
+
 # Create summary DataFrame and save to CSV
 df_summary = pd.DataFrame(summary_data)
 summary_csv_path = os.path.join(output_directory, 'summary.csv')
 df_summary.to_csv(summary_csv_path, index=False)
 print(f'Summary file created at {summary_csv_path}')
+
+# Save no test results files to CSV
+no_test_results_df = pd.DataFrame(no_test_results_files, columns=['filename'])
+no_test_results_csv_path = os.path.join(output_directory, 'no_test_results_files.csv')
+no_test_results_df.to_csv(no_test_results_csv_path, index=False)
+print(f'No test results file created at {no_test_results_csv_path}')
+
+print(f'Processed {file_count} files in {end_time - start_time:.2f} seconds')
